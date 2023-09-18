@@ -1,79 +1,36 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import express from 'express';
+import cors from 'cors';
+import logger from 'morgan';
+import { authRouter, roomsRouter, privatsRouter } from './routes/index.js';
+import { globalHeaders } from './middlewares/globalHeaders.js';
+import { errorsMidleware } from './middlewares/errors.js';
 
-const { MONGODB_HOST_URI, SEVER_PORT } = process.env;
-const PORT = SEVER_PORT || 8080;
+const { MONGODB_HOST_URI, SERVER_PORT } = process.env;
+const PORT = SERVER_PORT || 8080;
+
+mongoose.set('strictQuery', false);
+mongoose.connect(MONGODB_HOST_URI, () => console.log('Connected to DB'));
 
 const server = express();
+const formatsLogger = server.get('env') === 'development' ? 'dev' : 'short';
 
-// const io = new Server(server, {
-// 	cors: {
-// 		origin: '*',
-// 		methods: ['GET', 'POST'],
-// 	},
-// })
+server.use(logger(formatsLogger));
+server.use(globalHeaders);
+server.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }));
+server.use(express.json());
 
-mongoose.set('strictQuery', false)
+server.use('/auth', authRouter);
+server.use('/rooms', roomsRouter);
+server.use('/private', privatsRouter);
 
-mongoose.connect(MONGODB_HOST_URI)
-console.log('Database connection successful')
 
 server.get('/', (req, res, next) => {
-  res.send('Hello');
+  res.send('DEMO CHAT API');
 });
 
-server.listen(PORT, () => {
-	console.log(`App running on http://localhost:${PORT}`)
-})
-// const wss = new ws.Server(
-// 	{
-// 		port: 8585,
-// 	},
-// 	() => console.log(`Server started on 8585`)
-// )
+server.use(errorsMidleware.notFoundMessage);
+server.use(errorsMidleware.internalServerMessage)
 
-// wss.on('connection', function connection(ws) {
-// 	ws.on('message', function (message) {
-// 		message = JSON.parse(message)
-// 		console.log(message)
-// 		switch (message.event) {
-// 			case 'message':
-// 				broadcastMessage(message)
-// 				break
-// 			case 'connection':
-// 				broadcastMessage(message)
-// 				break
-// 		}
-// 	})
-// })
-
-// function broadcastMessage(message, id) {
-// 	wss.clients.forEach(client => {
-// 		client.send(JSON.stringify(message))
-// 	})
-// }
-
-// io.on('connection', async socket => {
-// 	const userId = socket.handshake.query.id
-
-// 	console.log(`User connected ${socket.id}`)
-
-// 	if (userId != null && Boolean(userId)) {
-// 		try {
-// 			console.log(userId)
-// 			// console.log(socket.id)
-// 			// User.findByIdAndUpdate(userId, {
-// 			// 	socket_id: socket.id,
-// 			// 	status: 'Online',
-// 			// })
-// 		} catch (e) {
-// 			console.log(e)
-// 		}
-// 	}
-
-// 	socket.on('message', async data => {
-// 		console.log(data)
-// 		io.send(data)
-// 	})
-// })
+server.listen(PORT, () => console.log(`App running on http://localhost:${PORT}`));
